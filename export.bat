@@ -1,0 +1,1 @@
+DllExporter.exe "Debug" "x64" "ObsidianX.Rainmeter.Nest\bin\Debug\" "ObsidianX.Rainmeter.Nest.dll"

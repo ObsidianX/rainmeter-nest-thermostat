@@ -45,6 +45,8 @@ namespace ObsidianX.Rainmeter.Nest
         public double ThermostatMode { get; private set; }
         public double ThermostatCurrentMode { get; private set; }
 
+        private string ConfigPath => $"{_rainmeter.ReplaceVariables ("#@#")}\\nest.token";
+
         public static NestPlugin GetParent (IntPtr skin, string name)
         {
             foreach (NestPlugin plugin in _parents) {
@@ -91,9 +93,8 @@ namespace ObsidianX.Rainmeter.Nest
 
             _httpClient = new HttpClient ();
 
-            string configPath = $"{rainmeter.ReplaceVariables ("#@#")}\\nest.token";
-            if (File.Exists (configPath)) {
-                _token = File.ReadAllText (configPath).Trim ();
+            if (File.Exists (ConfigPath)) {
+                _token = File.ReadAllText (ConfigPath).Trim ();
             }
 
             if (string.IsNullOrEmpty (_token)) {
@@ -201,9 +202,25 @@ namespace ObsidianX.Rainmeter.Nest
 
             _eventSource = new EventSource (uri);
             _eventSource.Headers.Add ("Authorization", $"Bearer {_token}");
-            _eventSource.OnError += (reason, data) => _rainmeter.Log (API.LogType.Error, $"EventSource: {reason}: {data}");
+            _eventSource.OnError += OnEventSourceError;
             _eventSource.OnMessage += ReadThermostats;
             _eventSource.Start ();
+        }
+
+        private void OnEventSourceError (string reason, string data, int code)
+        {
+            if (code == 401) {
+                _rainmeter.Log (API.LogType.Warning, "Lost authentication");
+                _token = null;
+                if (File.Exists (ConfigPath)) {
+                    File.Delete (ConfigPath);
+                }
+
+                Authenticated = 0;
+                ThermostatMode = (double) ThermostatModeEnum.Off;
+            } else {
+                _rainmeter.Log (API.LogType.Error, $"EventSource: {reason}: {data}");
+            }
         }
 
         private void ReadThermostats (Event evt)
@@ -211,6 +228,7 @@ namespace ObsidianX.Rainmeter.Nest
             if (evt.name != "put") {
                 return;
             }
+
             var thermostats = JsonConvert.DeserializeObject<Thermostats> (evt.data);
 
             Thermostat thermostat = null;
@@ -249,6 +267,7 @@ namespace ObsidianX.Rainmeter.Nest
                     ThermostatMode = (double) ThermostatModeEnum.Off;
                     break;
             }
+
             switch (thermostat.hvac_state) {
                 case "heating":
                     ThermostatCurrentMode = (double) ThermostatModeEnum.Heat;

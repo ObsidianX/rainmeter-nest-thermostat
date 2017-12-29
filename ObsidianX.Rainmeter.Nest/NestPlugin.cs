@@ -23,8 +23,8 @@ namespace ObsidianX.Rainmeter.Nest
     internal class NestPlugin : IPlugin
     {
         private static readonly List<NestPlugin> _parents = new List<NestPlugin> ();
-        private static string _apiHost = "developer-api.nest.com";
-        private static int _apiPort = 443;
+        private const string _apiHost = "developer-api.nest.com";
+        private const int _apiPort = 443;
 
         private API _rainmeter;
         private IntPtr _skinHandle;
